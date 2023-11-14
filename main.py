@@ -1,11 +1,19 @@
-# %%
+# Imports
 import pandas
-df_raw = pandas.read_json("raw_data.json")
+import numpy
+import requests
+import time
+import asyncio
+import aiohttp
+import json
 
-# %%
-# %%time
-# Variables
+# variables
+ipt_max_price = input("Max Price: ")
+ipt_min_price = input("Min Price: ")
+ipt_min_profit_percent = input("Min Profit Percent: ")
 
+lastcheck = time.time()
+url = "https://api.hypixel.net/skyblock/auctions"
 reforges = [
     "\u278c",
     "\u25c6",
@@ -111,23 +119,111 @@ reforges = [
     "Zealous ",
 ]
 
-df = df_raw.query("bin == False")
-df = df[["uuid","item_name","starting_bid","tier"]][~df["item_lore"].str.contains(r"\bfurniture\b")]
-df["item_id"] = df["item_name"].str.replace('|'.join(reforges), '', regex=True).replace(r"\[[^\]]*\] ", "", regex=True).replace(r'^\s+', '', regex=True)
-df["item_id"] = df['item_id'].astype(str) + '|' + df['tier'].astype(str)
-df = df.groupby('item_id').agg({'uuid': lambda x: list(x), 'item_name': lambda x: list(x), 'starting_bid': lambda x: list(x), 'tier': lambda x: list(x)})
+def main(df_raw):
+    df = df_raw.query("bin == False")
+    df = df[["uuid","item_name","starting_bid","tier"]][~df["item_lore"].str.contains(r"\bfurniture\b")]
+    df["item_id"] = df["item_name"].str.replace('|'.join(reforges), '', regex=True).replace(r"\[[^\]]*\] ", "", regex=True).replace(r'^\s+', '', regex=True)
+    df["item_id"] = df['item_id'].astype(str) + '|' + df['tier'].astype(str)
+    df = df.groupby('item_id').agg({'uuid': lambda x: list(x), 'item_name': lambda x: list(x), 'starting_bid': lambda x: list(x), 'tier': lambda x: list(x)})
+    df = df[df['tier'].str.len() >= 2]
 
 
-# %%
-# print(df.loc["Arack|EPIC"].to_frame().to_json("pandas_final.json", indent=4))
-from pprint import pprint
-for column in df.columns:
-    data = df[column]
-    pprint(f"Column: {column}, Data: {data.describe()}")
-
-# %%
-print(len(df_raw))
-print(len(df))
-df.to_json("pandas_final.json", indent=4)
+    items = pandas.DataFrame(columns=["item_name", "uuid", "price", "tier", "profit", "profit_percent", "mean", "median", "std"])
+    items_index = 0
 
 
+    for index, row in df.iterrows():
+
+        prices = row["starting_bid"]
+        modal_index = prices.index(min(prices))
+        prices = sorted(prices)
+
+        price = prices[0]
+        profit = prices[1] - price
+        profit_percent = (profit / price) * 100
+
+        if profit < 500: continue
+
+        uuid = row["uuid"][modal_index]
+        tier = row["tier"][modal_index]
+        item_name = row["item_name"][modal_index]
+
+        count = len(prices)
+        mean = numpy.mean(prices).astype(int)
+        std = numpy.std(prices).astype(int)
+        median = numpy.median(prices).astype(int)
+
+        items.loc[items_index] = {
+            "uuid": uuid,
+            "count": count,
+            "item_name": item_name,
+            "price": price,
+            "tier": tier,
+            "profit": profit,
+            "profit_percent": profit_percent,
+            "mean": mean,
+            "median": median,
+            "std": std,
+        }
+
+        items_index += 1
+
+    return items
+
+def checkIfRefresh(_time):
+    try:
+        response = requests.get(f"{url}?page=0")
+        response = response.json()
+
+        _time_r = response["lastUpdated"]
+
+        if _time_r > _time:
+            _time = _time_r
+            items = response["auctions"]
+            pages = response["totalPages"]
+
+            return _time, items, pages
+
+        else:
+            return _time, None, None
+
+    except requests.exceptions.RequestException as e:
+        return _time, None, None
+
+async def getAllAuctions(session: aiohttp.ClientSession, page):
+    response = await session.get(f"{url}?page={page}")
+
+    pageData = json.loads(await response.text())
+
+    return pageData["auctions"]
+
+async def getAllPages(items: list, pages):
+    async with aiohttp.ClientSession() as session:
+        tasks = [getAllAuctions(session, page) for page in range(1, pages)]
+        _items = await asyncio.gather(*tasks, return_exceptions=True)
+
+        if any(isinstance(item, Exception) for item in _items):
+            items = None
+        else:
+            items = [item for sublist in _items for item in sublist]
+        return pandas.DataFrame(items)
+
+def show_data(items):
+    print(items)
+
+
+if __name__ == "__main__":
+    while True:
+        lastcheck, items, pages = checkIfRefresh(lastcheck)
+
+        if items == None:
+            time.sleep(10)
+
+        else:
+            items = asyncio.run(getAllPages(items, pages))
+            if items is not None:
+                items = main(items)
+                print(len(items))
+                items.to_json("pandas_final.json", indent=4)
+                show_data(items)
+                time.sleep(30)
