@@ -3,3 +3,6 @@
 /test.py
 /tmp
 /venv
+/build
+/dist
+/main.spec

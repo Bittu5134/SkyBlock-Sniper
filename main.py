@@ -6,11 +6,17 @@ import time
 import asyncio
 import aiohttp
 import json
+from tabulate import tabulate
 
 # variables
-ipt_max_price = input("Max Price: ")
-ipt_min_price = input("Min Price: ")
-ipt_min_profit_percent = input("Min Profit Percent: ")
+ipt_max_price = int(input("Max Price: "))
+ipt_min_price = int(input("Min Price: "))
+ipt_min_profit_percent = int(input("Min Profit Percent: "))
+ipt_sorting_method = int(input("Sorting Method [1]Price [2]Profit [3]Profit Percent: "))
+
+if ipt_sorting_method == 1: ipt_sorting_method = "price"
+elif ipt_sorting_method == 2: ipt_sorting_method = "profit"
+elif ipt_sorting_method == 3: ipt_sorting_method = "profit_percent"
 
 lastcheck = time.time()
 url = "https://api.hypixel.net/skyblock/auctions"
@@ -160,7 +166,7 @@ def main(df_raw):
             "price": price,
             "tier": tier,
             "profit": profit,
-            "profit_percent": profit_percent,
+            "profit_percent": int(profit_percent),
             "mean": mean,
             "median": median,
             "std": std,
@@ -168,6 +174,8 @@ def main(df_raw):
 
         items_index += 1
 
+    items = items[(items["price"] >= ipt_min_price) & (items["price"] <= ipt_max_price) & (items["profit"] >= ipt_min_profit_percent)]
+    items = items.sort_values(ipt_sorting_method, ignore_index=True)
     return items
 
 def checkIfRefresh(_time):
@@ -191,10 +199,10 @@ def checkIfRefresh(_time):
         return _time, None, None
 
 async def getAllAuctions(session: aiohttp.ClientSession, page):
+
     response = await session.get(f"{url}?page={page}")
-
     pageData = json.loads(await response.text())
-
+    print(f"Page {page} loaded")
     return pageData["auctions"]
 
 async def getAllPages(items: list, pages):
@@ -208,8 +216,10 @@ async def getAllPages(items: list, pages):
             items = [item for sublist in _items for item in sublist]
         return pandas.DataFrame(items)
 
-def show_data(items):
-    print(items)
+def show_data(items :pandas.DataFrame):
+    # print(items.to_markdown())
+    print(tabulate(items, tablefmt="pipe", headers="keys"))
+    items.to_json("pandas_final.json", indent=4)
 
 
 if __name__ == "__main__":
@@ -222,8 +232,7 @@ if __name__ == "__main__":
         else:
             items = asyncio.run(getAllPages(items, pages))
             if items is not None:
+                print("Doing sorting")
                 items = main(items)
-                print(len(items))
-                items.to_json("pandas_final.json", indent=4)
                 show_data(items)
                 time.sleep(30)
