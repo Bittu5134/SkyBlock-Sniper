@@ -125,8 +125,8 @@ reforges = [
     "Zealous ",
 ]
 
-def main(df_raw):
-    df = df_raw.query("bin == False")
+def main(df):
+    df = df[ df["bin"] == True ]
     df = df[["uuid","item_name","starting_bid","tier"]][~df["item_lore"].str.contains(r"\bfurniture\b")]
     df["item_id"] = df["item_name"].str.replace('|'.join(reforges), '', regex=True).replace(r"\[[^\]]*\] ", "", regex=True).replace(r'^\s+', '', regex=True)
     df["item_id"] = df['item_id'].astype(str) + '|' + df['tier'].astype(str)
@@ -134,7 +134,7 @@ def main(df_raw):
     df = df[df['tier'].str.len() >= 2]
 
 
-    items = pandas.DataFrame(columns=["item_name", "uuid", "price", "tier", "profit", "profit_percent", "mean", "median", "std"])
+    items = pandas.DataFrame(columns=["item_name", "uuid", "price", "profit", "count", "tier", "profit_percent", "mean", "median", "std"])
     items_index = 0
 
 
@@ -202,7 +202,6 @@ async def getAllAuctions(session: aiohttp.ClientSession, page):
 
     response = await session.get(f"{url}?page={page}")
     pageData = json.loads(await response.text())
-    print(f"Page {page} loaded")
     return pageData["auctions"]
 
 async def getAllPages(items: list, pages):
@@ -217,7 +216,7 @@ async def getAllPages(items: list, pages):
         return pandas.DataFrame(items)
 
 def show_data(items :pandas.DataFrame):
-    # print(items.to_markdown())
+    print("\n"+"="*30+"\n")
     print(tabulate(items, tablefmt="pipe", headers="keys"))
     items.to_json("pandas_final.json", indent=4)
 
@@ -232,7 +231,6 @@ if __name__ == "__main__":
         else:
             items = asyncio.run(getAllPages(items, pages))
             if items is not None:
-                print("Doing sorting")
                 items = main(items)
                 show_data(items)
                 time.sleep(30)
