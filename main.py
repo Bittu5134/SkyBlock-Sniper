@@ -17,6 +17,7 @@ ipt_sorting_method = int(input("Sorting Method [1]Price [2]Profit [3]Profit Perc
 if ipt_sorting_method == 1: ipt_sorting_method = "price"
 elif ipt_sorting_method == 2: ipt_sorting_method = "profit"
 elif ipt_sorting_method == 3: ipt_sorting_method = "profit_percent"
+# elif ipt_sorting_method == 4: ipt_sorting_method = "rating"
 
 lastcheck = time.time()
 url = "https://api.hypixel.net/skyblock/auctions"
@@ -159,6 +160,11 @@ def main(df):
         std = numpy.std(prices).astype(int)
         median = numpy.median(prices).astype(int)
 
+        # threshold = (max(prices)-price)
+        # rating = 0
+        # if abs(mean - median) < threshold: rating += 1
+        # if std < threshold: rating += 1
+
         items.loc[items_index] = {
             "uuid": uuid,
             "count": count,
@@ -170,6 +176,7 @@ def main(df):
             "mean": mean,
             "median": median,
             "std": std,
+            # "rating": rating
         }
 
         items_index += 1
@@ -202,6 +209,7 @@ async def getAllAuctions(session: aiohttp.ClientSession, page):
 
     response = await session.get(f"{url}?page={page}")
     pageData = json.loads(await response.text())
+    print("doing page " + str(page))
     return pageData["auctions"]
 
 async def getAllPages(items: list, pages):
