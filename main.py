@@ -209,7 +209,6 @@ async def getAllAuctions(session: aiohttp.ClientSession, page):
 
     response = await session.get(f"{url}?page={page}")
     pageData = json.loads(await response.text())
-    print("doing page " + str(page))
     return pageData["auctions"]
 
 async def getAllPages(items: list, pages):
