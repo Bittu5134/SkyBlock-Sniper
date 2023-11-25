@@ -5,7 +5,7 @@
 
 ### How to use
 
-- Install all the dependencies with this command: w`python -m pip install -r requirements.txt`.
+- Install all the dependencies with this command: `python -m pip install -r requirements.txt`.
 - Run the `main.py` file.
 - You will be prompted to provide filtering parameters.
 ```bash
