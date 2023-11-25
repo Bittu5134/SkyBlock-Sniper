@@ -5,14 +5,15 @@
 
 ### How to use
 
+- You must have a working Python installation.
 - Install all the dependencies with this command: `python -m pip install -r requirements.txt`.
 - Run the `main.py` file.
 - You will be prompted to provide filtering parameters.
 ```bash
-Max Price: 2570000 # The maxing price of the items
-Min Price: 2000
-Min Profit Percent: 57
-Sorting Method [1]Price [2]Profit [3]Profit Percent: 1
+Max Price: 2570000 # The max price of the items
+Min Price: 2000 # The min price of the items
+Min Profit Percent: 57 # The min profit percent of the items
+Sorting Method [1]Price [2]Profit [3]Profit Percent: 1 # How the output data should be formatted
 ``` 
 - After filling the parameters, it will take some time to get the data.
 - It will then filter the data and give you a list of items you can purchase for low and then sell for higher prices in the Auction.
